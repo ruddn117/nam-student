@@ -29,7 +29,7 @@
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            display: none; /* 로그인 성공 전 메인 화면 숨김 */
+            display: none; /* 로그인 성공 전까지 메인 화면 숨김 */
         }
         .title {
             text-align: center;
@@ -108,7 +108,7 @@
             white-space: pre-wrap;
         }
 
-        /* 🔒 로그인 모달 창 스타일 */
+        /* 🔒 ② firebase Authentication 로그인 양식 스타일 */
         .login-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -148,10 +148,10 @@
         <p class="login-desc">스포츠재활 시스템을 이용하시려면 이메일과 비밀번호를 입력하세요.</p>
         <form id="loginForm">
             <div class="form-group">
-                <input type="email" id="loginEmail" class="form-control" placeholder="이메일 주소 (예: 24611@daehyun.hs.kr)" required>
+                <input type="email" id="loginEmail" class="form-control" placeholder="이메일 주소 입력" required>
             </div>
             <div class="form-group">
-                <input type="password" id="loginPassword" class="form-control" placeholder="비밀번호를 입력하세요" required>
+                <input type="password" id="loginPassword" class="form-control" placeholder="비밀번호 입력" required>
             </div>
             <button type="submit" class="btn">로그인</button>
         </form>
@@ -215,34 +215,33 @@
     import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 
-    // ⚠️ [필수 수정!!] 파이어베이스 콘솔의 프로젝트 설정에서 진짜 회원님 정보를 그대로 복사해 붙여넣으세요!
-    // "YOUR_API_KEY" 상태로 두면 아까 발생했던 auth/api-key-not-valid 에러가 다시 납니다!
+    // ⚠️ [필수 수정!!] 이곳에 파이어베이스 설정을 복사해서 덮어씌워야 api-key 오류가 완전히 사라집니다!
     const firebaseConfig = {
-        apiKey: "YOUR_API_KEY", 
-        authDomain: "sport-let-s-go.firebaseapp.com",
-        projectId: "sport-let-s-go",
-        storageBucket: "sport-let-s-go.appspot.com",
-        messagingSenderId: "YOUR_MESSAGING_SENDER_ID", 
-        appId: "YOUR_APP_ID"
-    };
+   apiKey: "AIzaSyAbjqpuW7BsLF9X2SkZlKMPCMT3pILPfaw",
+  authDomain: "sport-let-s-go.firebaseapp.com",
+  projectId: "sport-let-s-go",
+  storageBucket: "sport-let-s-go.firebasestorage.app",
+  messagingSenderId: "773080347004",
+  appId: "1:773080347004:web:c725c2e443ed05df93b4f9",
+  measurementId: "G-DGZSDF0WM3"
+};
 
-    // 파이어베이스 초기화 실행
+    // 파이어베이스 엔진 초기 가동
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth(app);
 
-    // 구글 앱 스크립트 웹 앱 URL 주소 유지
+    // 구글 앱 스크립트 연결 통로 주소
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyCMxsYmyF2x_HNaUPTunDuc5NSgCaANRJR-ulILk9uEe83Pi38eE3Y0nXRW2kBmXPrfQ/exec";
 
     let currentUserData = null;
 
-    // 🔒 이메일/비밀번호 로그인 처리
+    // 🔒 ② 이메일/비밀번호 인증 전송 처리
     document.getElementById('loginForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
-        // "YOUR_API_KEY" 기본값 필터 및 사전 안내 장치
         if (firebaseConfig.apiKey.includes("YOUR_")) {
-            alert("⚠️ 코드 내부의 firebaseConfig 설정을 본인의 파이어베이스 고유 키값으로 수정해 주셔야 로그인이 정상 작동합니다!");
+            alert("⚠️ 코드 내 123번째 줄 부근의 firebaseConfig 설정을 본인의 파이어베이스 고유 키값들로 꼭 수정해 주세요!");
             return;
         }
 
@@ -251,48 +250,50 @@
 
         signInWithEmailAndPassword(auth, email, password)
             .then((userCredential) => {
-                console.log("로그인 완료:", userCredential.user.email);
+                console.log("인증 완료:", userCredential.user.email);
             })
             .catch((error) => {
-                console.error("로그인 실패 에러코드:", error.code);
-                alert("로그인에 실패했습니다. 이메일과 비밀번호를 다시 확인해 주세요.\n(에러내용: " + error.message + ")");
+                console.error("인증 실패 코드:", error.code);
+                alert("로그인 실패: 이메일이나 비밀번호가 파이어베이스 Authentication 규칙과 일치하지 않습니다.\n(상세내용: " + error.message + ")");
             });
     });
 
-    // 🔓 로그인 상태 변화 실시간 추적 엔진
+    // 🔓 실시간 로그인 보호 상태 체크 추적 장치
     onAuthStateChanged(auth, (user) => {
         if (user) {
             currentUserData = user;
             document.getElementById('userWelcome').innerText = `👤 ${user.email}님 환영합니다`;
             
+            // 로그인 상태이면 배경화면 보이기 및 잠금 해제
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('mainContainer').style.display = 'block';
         } else {
+            // 로그아웃 상태이면 화면 원천 차단
             document.getElementById('loginOverlay').style.display = 'flex';
             document.getElementById('mainContainer').style.display = 'none';
         }
     });
 
-    // 🚪 로그아웃 기능
+    // 🚪 로그아웃 세션 해제
     document.getElementById('logoutBtn').addEventListener('click', () => {
         signOut(auth).then(() => {
-            alert("로그아웃 되었습니다.");
+            alert("정상적으로 로그아웃 되었습니다.");
         });
     });
 
-    // 🏃‍♂️ 운동 추천 양식 처리 및 Firestore 데이터 자동 전송
+    // 🏃‍♂️ 운동 처방 질문 작성 및 전송 (API 연동 + 데이터 연동 일괄 처리)
     document.getElementById('rehabForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
         const resultDiv = document.getElementById('result');
         const speakBtn = document.getElementById('speakBtn');
         
-        resultDiv.innerText = "AI가 증상을 기반으로 맞춤 재활 운동 가이드를 생성하고 있습니다...";
+        resultDiv.innerText = "AI가 유저 상태를 종합 분석하여 맞춤 재활 프로토콜을 실시간 연산 중입니다...";
         speakBtn.style.display = "none";
 
         const formData = {
             name: currentUserData ? currentUserData.email.split('@')[0] : "남경우",
-            email: currentUserData ? currentUserData.email : "이메일없음",
+            email: currentUserData ? currentUserData.email : "이메일누락",
             age: document.getElementById('age').value,
             height: document.getElementById('height').value,
             weight: document.getElementById('weight').value,
@@ -300,24 +301,24 @@
             painDetail: document.getElementById('painDetail').value
         };
 
-        // 구글 앱 스크립트 API 통신 연동
+        // ③ [API로 생성형 인공지능 연동] 구글 웹 앱을 통해 OpenAI GPT 모델 호출
         fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify(formData)
         })
         .then(response => {
-            if (!response.ok) throw new Error('네트워크 응답 불량');
+            if (!response.ok) throw new Error('네트워크 연결 불안정');
             return response.json();
         })
         .then(data => {
-            // undefined 에러 해결용 매칭 검사
+            // 'undefined' 결과 출력 버그 완전 제거 로직 검사
             if (data.error) {
-                resultDiv.innerText = "❌ 오류 발생:\n" + data.error;
+                resultDiv.innerText = "❌ AI 연동 오류 발생:\n" + data.error;
             } else if (data.result) {
                 resultDiv.innerText = data.result;
-                speakBtn.style.display = "block"; // TTS 버튼 보이기
+                speakBtn.style.display = "block"; // ⑤ TTS 작동용 버튼 깨우기
 
-                // 파이어베이스 Firestore 'rehab_records' 컬렉션에 실시간 기록 보관 연동
+                // ④ [firebase 데이터 연동] GPT 답변 완성 즉시 Firestore 데이터베이스에 백업 자동화
                 const saveData = {
                     ...formData,
                     uid: currentUserData ? currentUserData.uid : "",
@@ -327,31 +328,31 @@
 
                 addDoc(collection(db, "rehab_records"), saveData)
                     .then(() => {
-                        console.log("Firestore 데이터베이스에 정상 연동 세이브 완료");
+                        console.log("Firestore 'rehab_records' 컬렉션에 로그 적재 완료");
                     })
                     .catch((fsError) => {
-                        console.error("Firestore 저장 실패:", fsError);
+                        console.error("Firestore 쓰기 실패:", fsError);
                     });
             } else {
-                resultDiv.innerText = "응답 반환 구조에 문제가 발생했습니다.";
+                resultDiv.innerText = "반환 데이터의 규격이 일치하지 않습니다.";
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            resultDiv.innerText = "통신 연결 에러가 발생했습니다. 구글 앱 스크립트 배포 주소를 확인하세요.";
+            resultDiv.innerText = "데이터 서버 통신 오류가 발생했습니다.\n구글 앱 스크립트 웹 앱 배포 주소가 SCRIPT_URL에 공백 없이 제대로 대입되었는지 검토하세요.";
         });
     });
 
-    // TTS 기능
+    // ⑤ [TTS 기능 활용하기] 브라우저 웹 표준 음성 음성 송출 장치
     document.getElementById('speakBtn').addEventListener('click', function() {
         const text = document.getElementById('result').innerText;
         if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
+            window.speechSynthesis.cancel(); // 채널 겹침 강제 리셋
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'ko-KR';
+            utterance.lang = 'ko-KR'; // 한국어 가이드 보이스 지정
             window.speechSynthesis.speak(utterance);
         } else {
-            alert("이 브라우저는 TTS 음성 출력을 지원하지 않습니다.");
+            alert("이 브라우저 환경에서는 TTS 오디오 출력을 지원하지 않습니다.");
         }
     });
 </script>
