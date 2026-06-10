@@ -28,12 +28,19 @@
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: none; /* 로그인 전에는 메인 화면을 숨깁니다 */
         }
         .title {
             text-align: center;
             font-size: 24px;
             font-weight: bold;
             margin-bottom: 25px;
+        }
+        .welcome-msg {
+            text-align: right;
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 10px;
         }
         .section-title {
             font-size: 18px;
@@ -43,11 +50,6 @@
         }
         .form-group {
             margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
         }
         .form-control {
             width: 100%;
@@ -89,19 +91,57 @@
             line-height: 1.6;
             white-space: pre-wrap;
         }
+
+        /* 🔒 로그인 모달창 디자인 */
+        .login-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .login-box {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 10px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .login-box h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
     </style>
 </head>
 <body>
 
-<div class="container">
+<div class="login-overlay" id="loginOverlay">
+    <div class="login-box">
+        <h2>👋 시스템 로그인</h2>
+        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">서비스 이용을 위해 이름을 입력해 주세요.</p>
+        <form id="loginForm">
+            <div class="form-group">
+                <input type="text" id="loginName" class="form-control" placeholder="이름을 입력하세요" required>
+            </div>
+            <button type="submit" class="btn">시스템 접속하기</button>
+        </form>
+    </div>
+</div>
+
+<div class="container" id="mainContainer">
+    <div class="welcome-msg" id="userWelcome">로그인 정보 없음</div>
     <div class="title">🏃‍♂️ AI 스포츠재활 운동 추천 시스템</div>
     
     <div class="section-title">회원 정보 입력</div>
     
     <form id="rehabForm">
-        <div class="form-group">
-            <input type="text" id="name" class="form-control" placeholder="이름을 입력하세요" required>
-        </div>
+        <input type="hidden" id="name"> 
+        
         <div class="form-group">
             <input type="number" id="age" class="form-control" placeholder="나이를 입력하세요" required>
         </div>
@@ -145,7 +185,7 @@
     import { initializeApp } from "firebase/app";
     import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
 
-    // ⚠️ [필수 수정] 회원님의 파이어베이스 웹 앱 등록 시 발급받은 키값들을 아래에 정확히 입력하세요!
+    // ⚠️ [필수 수정] 회원님의 파이어베이스 개인 비밀번호 정보들(이전 답변 참고)을 꼭 넣어주세요!
     const firebaseConfig = {
         apiKey: "YOUR_API_KEY",
         authDomain: "sport-let-s-go.firebaseapp.com",
@@ -162,6 +202,26 @@
     // 구글 앱 스크립트 웹 앱 URL (보내주신 주소 유지)
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyCMxsYmyF2x_HNaUPTunDuc5NSgCaANRJR-ulILk9uEe83Pi38eE3Y0nXRW2kBmXPrfQ/exec";
 
+    // 변수 선언
+    let currentUserName = "";
+
+    // 🔒 1. 로그인 폼 제출 이벤트 처리
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const inputName = document.getElementById('loginName').value.trim();
+        
+        if(inputName) {
+            currentUserName = inputName;
+            document.getElementById('name').value = inputName; // 히든 필드에 저장
+            document.getElementById('userWelcome').innerText = `👤 ${currentUserName} 회원님 환영합니다`;
+            
+            // 로그인창은 숨기고 메인 시스템 화면 켜기
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('mainContainer').style.display = 'block';
+        }
+    });
+
+    // 🏃‍♂️ 2. 추천 시스템 폼 제출 이벤트 처리
     document.getElementById('rehabForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -173,7 +233,7 @@
 
         // 입력 폼 데이터 수집
         const formData = {
-            name: document.getElementById('name').value,
+            name: currentUserName, // 로그인할 때 입력했던 이름이 자동으로 들어갑니다
             age: document.getElementById('age').value,
             height: document.getElementById('height').value,
             weight: document.getElementById('weight').value,
@@ -181,7 +241,7 @@
             painDetail: document.getElementById('painDetail').value
         };
 
-        // 1. 구글 앱 스크립트로 POST 요청 전송 (AI 분석 받아오기)
+        // 구글 앱 스크립트로 POST 요청 전송 (AI 분석 받아오기)
         fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify(formData)
@@ -200,7 +260,7 @@
                 resultDiv.innerText = data.result;
                 speakBtn.style.display = "block"; // 음성 듣기 버튼 보이기
 
-                // 2. 파이어베이스 Firestore 데이터베이스에 실시간 기록 저장
+                // 파이어베이스 Firestore 데이터베이스에 실시간 기록 저장
                 const saveData = {
                     ...formData,
                     aiRecommendation: data.result,
